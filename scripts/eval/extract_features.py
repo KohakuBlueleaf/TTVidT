@@ -4,8 +4,10 @@
 The model is rebuilt from the checkpoint itself (training ``.ckpt`` or an exported
 model directory / Hugging Face repo), so only its path is needed::
 
-    ttvidt-run scripts/eval/extract_features.py -c configs/eval/frozen.py \
-        CHECKPOINT_PATH=ttvidt/<run_id>/checkpoints/epoch=7.ckpt
+    kogine run scripts/eval/extract_features.py -c configs/eval/my_model.py
+
+where ``configs/eval/my_model.py`` builds on ``configs/eval/frozen.py`` and sets
+``CHECKPOINT_PATH`` (see docs/evaluation.md).
 
 Output, per dataset and split::
 

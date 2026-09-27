@@ -12,8 +12,8 @@ Decoder-only pretraining happens once; the exported weights initialise the decod
 of every encoder run (``DECODER_PRETRAINED`` in configs/pretrain).
 
 Usage:
-  ttvidt-run scripts/train/pretrain_decoder.py -c configs/decoder/imgnet_S_qknorm.py
-  ttvidt-run scripts/train/pretrain_decoder.py -c configs/decoder/video_S_qknorm.py
+  kogine run scripts/train/pretrain_decoder.py -c configs/decoder/imgnet_S_qknorm.py
+  kogine run scripts/train/pretrain_decoder.py -c configs/decoder/video_S_qknorm.py
   python scripts/train/export_decoder.py <checkpoint> --output checkpoints/decoders/<name>
 """
 
@@ -599,6 +599,7 @@ def main():
         log_loss_c=LOG_LOSS_C,
     )
 
+    print("run id:", RUN_ID)
     if LOGGER == "wandb":
         from lightning.pytorch.loggers import WandbLogger
 

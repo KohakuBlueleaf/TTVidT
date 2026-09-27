@@ -3,12 +3,9 @@
 Only the decoder size / initialisation differs from the flagship recipe.
 """
 
-from _base.pretrain import *  # noqa: F401,F403
+from kohakuengine import use_config
+
+_base = use_config("../../_base/pretrain.py").globals_dict
 
 RUN_NAME = "decoder_ablation_decS_video"
-DECODER_PRETRAINED = f"{HF_DECODERS}/pretrain_video_S_qknorm"
-
-
-def config_gen():
-    print("run id:", RUN_ID)
-    return Config.from_globals()
+DECODER_PRETRAINED = f"{_base['HF_DECODERS']}/pretrain_video_S_qknorm"

@@ -3,19 +3,20 @@
 Every config in ``configs/pretrain`` starts from this file and overrides only
 what its table cell changes (architecture, objective, decoder, augmentation):
 
-    from _base.pretrain import *
+    from kohakuengine import use_config
+
+    _base = use_config("../_base/pretrain.py").globals_dict   # path relative to the config
+    MOTION_ENCODER_CONFIG = _base["TT1D_ENCODER"]            # named building blocks
 
 Recipe: OpenVid-1M (384 px) + Moments-in-Time v2, 8 frames at 6 fps, 256x256,
 8 epochs, global batch 32, AdamW (5e-4, betas 0.9/0.98, wd 0.01), 10k warmup,
 cosine decay to 1% of the peak, grad clip 0.1, fp16 mixed precision, muP with
 base width 256. Encoders take pixels; the decoder reconstructs targets in the
-16x16x4 latent space of a frozen frame VAE.
+32x32x4 latent space of a frozen frame VAE.
 """
 
 import os
 import random
-
-from ttvidt.config import Config  # noqa: F401  (re-exported for child configs)
 
 HF_DECODERS = "KBlueLeaf/TTVidT-decoders"   # pretrained DiT decoders (see configs/decoder)
 DINOV3 = "facebook/dinov3-vitb16-pretrain-lvd1689m"

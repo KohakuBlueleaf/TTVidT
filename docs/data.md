@@ -16,7 +16,8 @@ eval-dataset/                 benchmarks
 ```
 
 The roots default to `data/` and `eval-dataset/`; set `TTVIDT_DATA` to move the
-pretraining root, or override `DATASET_FOLDERS` / `DATA_ROOT` in a config.
+pretraining root, or set `DATASET_FOLDERS` (and `DATASET_PATH` for ImageNet decoder
+pretraining) in your config.
 
 ## Pretraining corpora
 

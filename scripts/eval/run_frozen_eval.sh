@@ -19,8 +19,8 @@ NSEEDS="${4:-3}"
 [ "${CKPT##*.}" = "ckpt" ] || NAME="${2:-$(basename "$CKPT")}"
 
 echo "=== [1/4] extract ($DS) -> features/$NAME ==="
-ttvidt-run scripts/eval/extract_features.py -c configs/eval/frozen.py \
-    CHECKPOINT_PATH="$CKPT" MODEL_NAME="$NAME" DATASETS="$DS"
+kogine run scripts/eval/extract_features.py -c configs/eval/frozen.py \
+    --set CHECKPOINT_PATH="$CKPT" --set MODEL_NAME="$NAME" --set DATASETS="$DS"
 
 echo "=== [2/4] check ==="
 python scripts/eval/check_features.py "$NAME" --datasets "$DS"

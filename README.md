@@ -66,17 +66,18 @@ Frames should be resized to 256x256 and normalised with mean = std = 0.5. See
 | 3. Pretrain encoders: one config per table cell | [docs/training.md](docs/training.md) |
 | 4. Frozen-probe evaluation, fine-tuning, diagnostics | [docs/evaluation.md](docs/evaluation.md) |
 
-Every experiment is a Python config run by `ttvidt-run`:
+Every experiment is a Python config run with [KohakuEngine](https://github.com/KohakuBlueleaf/KohakuEngine)'s `kogine run`:
 
 ```bash
 # TT-VidT (TT3D + Diff Compression, decoder S video-pretrained), 2 GPUs
-ttvidt-run scripts/train/pretrain_encoder.py -c configs/pretrain/ttvidt_tt3d_diffcomp.py
+kogine run scripts/train/pretrain_encoder.py -c configs/pretrain/ttvidt_tt3d_diffcomp.py
 
 # frozen evaluation of the result: extract -> check -> probe (3 seeds) -> mean +- std
 bash scripts/eval/run_frozen_eval.sh ttvidt/<run_id>/checkpoints/epoch=7.ckpt
 ```
 
-Which config belongs to which table is listed in [docs/configs.md](docs/configs.md).
+To change a setting, write a config that builds on an existing one (see
+[docs/configs.md](docs/configs.md), which also lists which config belongs to which table).
 
 ## Repository layout
 
@@ -88,7 +89,6 @@ src/ttvidt/           model, training and data code (installable package)
   trainer.py          TTVidTrainer: objectives, optimisation, EMA, logging
   data/               tar-of-JPEG video datasets, augmentation, decoder-pretraining data
   hub.py              load training checkpoints / exported models
-  config.py           Python configs + the `ttvidt-run` launcher
 src/vidmet/           benchmark dataset loaders (HMDB51, ARID, IARD, Jester, SSv2, Diving48, EK-100)
 configs/
   _base/              shared recipes (encoder pretraining, decoder pretraining)
@@ -108,3 +108,9 @@ docs/                 guides
 
 Apache-2.0, see [LICENSE](LICENSE). DINOv3, the datasets and the V-JEPA 2 baseline
 are subject to their own licenses.
+
+## Acknowledgement
+
+This work is supported by the NVIDIA Taiwan AI Research & Development Center (TRDC).
+
+This work utilize sponsored compute resources from Spellbrush.

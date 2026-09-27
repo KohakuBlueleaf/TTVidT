@@ -18,6 +18,7 @@ dependencies = [
     "anyschedule",
     "optimfactory",
     "huggingface_hub",
+    "kohaku-engine>=0.4",      # configs + `kogine run` launcher
     "safetensors",
     "numpy",
     "pillow",
@@ -30,9 +31,6 @@ video = ["torchcodec", "av"]            # raw video files instead of tar-of-JPEG
 data = ["opencv-python", "pyarrow"]     # dataset conversion scripts
 vjepa2 = ["pyyaml"]                     # V-JEPA 2 baseline evaluation
 analysis = ["matplotlib"]
-
-[project.scripts]
-ttvidt-run = "ttvidt.config:main"
 
 [project.urls]
 Homepage = "https://github.com/KohakuBlueleaf/TTVidT"

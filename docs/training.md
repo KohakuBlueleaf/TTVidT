@@ -5,16 +5,16 @@ initialises its decoder from one of them. The pretrained decoders are on the
 Hugging Face Hub ([`KBlueLeaf/TTVidT-decoders`](https://huggingface.co/KBlueLeaf/TTVidT-decoders)) and are downloaded automatically, so
 stage 1 is optional.
 
-Every run is a config executed by `ttvidt-run` (see [configs.md](configs.md)):
+Every run is a config executed by `kogine run` (see [configs.md](configs.md)):
 
 ```bash
-ttvidt-run <script> -c <config> [KEY=VALUE ...]
+kogine run <script> -c <config>
 ```
 
 ## Encoder pretraining
 
 ```bash
-ttvidt-run scripts/train/pretrain_encoder.py -c configs/pretrain/ttvidt_tt3d_diffcomp.py
+kogine run scripts/train/pretrain_encoder.py -c configs/pretrain/ttvidt_tt3d_diffcomp.py
 ```
 
 The shared recipe is `configs/_base/pretrain.py`:
@@ -30,15 +30,26 @@ The shared recipe is `configs/_base/pretrain.py`:
 | Decoder | S (768d, 12 layers), ImageNet-pretrained unless the config says otherwise |
 | Targets | 32x32x4 latents of the frozen frame VAE (`KBlueLeaf/latentmaid-vae`, see [data.md](data.md#frame-vae)) |
 
-Useful overrides:
+To change anything, write a config on top of the one you start from:
+
+```python
+# configs/my_run.py
+from kohakuengine import use_config
+
+use_config("pretrain/ttvidt_tt3d_diffcomp.py")
+
+GPUS = [0, 1, 2, 3]   # keep BATCH_SIZE x len(GPUS) x GRAD_ACC = 32
+BATCH_SIZE = 8
+LOGGER = "csv"        # no Weights & Biases account
+
+# continue a run (weights + optimizer + schedule):
+# CKPT_PATH = "ttvidt/<run_id>/checkpoints/epoch=3.ckpt"
+# TRAINER_RESUME = True
+# RUN_ID = "<run_id>"
+```
 
 ```bash
-# different GPUs / per-device batch (keep BATCH_SIZE x len(GPUS) x GRAD_ACC = 32)
-ttvidt-run scripts/train/pretrain_encoder.py -c <config> GPUS=[0,1,2,3] BATCH_SIZE=8
-# no Weights & Biases account
-ttvidt-run scripts/train/pretrain_encoder.py -c <config> LOGGER=csv
-# continue a run (weights + optimizer + schedule)
-ttvidt-run scripts/train/pretrain_encoder.py -c <config> CKPT_PATH=ttvidt/<run_id>/checkpoints/epoch=3.ckpt TRAINER_RESUME=True RUN_ID=<run_id>
+kogine run scripts/train/pretrain_encoder.py -c configs/my_run.py
 ```
 
 Checkpoints go to `ttvidt/<RUN_ID>/checkpoints/`: `epoch=N.ckpt` after each epoch
@@ -53,7 +64,7 @@ python scripts/tools/smoke_test.py configs/pretrain/ttvidt_tt3d_diffcomp.py --st
 ## Decoder pretraining
 
 ```bash
-ttvidt-run scripts/train/pretrain_decoder.py -c configs/decoder/video_S_qknorm.py
+kogine run scripts/train/pretrain_decoder.py -c configs/decoder/video_S_qknorm.py
 python scripts/train/export_decoder.py ttvidt-decoder/<run_id>/checkpoints/epoch=*-step=100000.ckpt \
     --output checkpoints/decoders/pretrain_video_S_qknorm
 ```
@@ -66,8 +77,8 @@ Recipe (`configs/_base/decoder.py`): 100k steps, global batch 256, AdamW lr 1e-4
   through cross-attention, the spatial features of an earlier frame (1/6 to 0.5 s
   apart).
 
-To use your own decoder, set `DECODER_PRETRAINED` to the exported file, e.g.
-`DECODER_PRETRAINED=checkpoints/decoders/pretrain_video_S_qknorm` (a local
+To use your own decoder, set `DECODER_PRETRAINED` in your config to the exported
+file, e.g. `DECODER_PRETRAINED = "checkpoints/decoders/pretrain_video_S_qknorm"` (a local
 `.safetensors`, extension optional). Values of the form `"<hf_repo>/<name>"` load
 `<name>.safetensors` from a Hugging Face repo.
 

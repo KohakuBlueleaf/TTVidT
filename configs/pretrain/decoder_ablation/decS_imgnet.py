@@ -3,12 +3,8 @@
 Only the decoder size / initialisation differs from the flagship recipe.
 """
 
-from _base.pretrain import *  # noqa: F401,F403
+from kohakuengine import use_config
+
+use_config("../../_base/pretrain.py")
 
 RUN_NAME = "decoder_ablation_decS_imgnet"
-
-
-
-def config_gen():
-    print("run id:", RUN_ID)
-    return Config.from_globals()

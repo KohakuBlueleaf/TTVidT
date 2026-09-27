@@ -3,11 +3,16 @@
 8 frames sampled uniformly over each clip, resized to 256x256, pixels in [-1, 1];
 features are the per-frame motion tokens of the frozen encoder.
 
-    ttvidt-run scripts/eval/extract_features.py -c configs/eval/frozen.py \
-        CHECKPOINT_PATH=<ttvidt/<run_id>/checkpoints/epoch=7.ckpt | exported model dir | HF repo id>
-"""
+Build a config on top of this one that sets the checkpoint::
 
-from ttvidt.config import Config
+    from kohakuengine import use_config
+
+    use_config("frozen.py")
+    CHECKPOINT_PATH = "ttvidt/<run_id>/checkpoints/epoch=7.ckpt"   # or exported model dir / HF repo id
+    MODEL_NAME = "my_model"
+
+    kogine run scripts/eval/extract_features.py -c configs/eval/my_model.py
+"""
 
 CHECKPOINT_PATH = None
 DATASETS = "hmdb51,arid,iard,jester,sthsthv2,diving48,ek100_verb"
@@ -25,7 +30,3 @@ HMDB_SPLIT_ID = 1
 ARID_SPLIT_ID = 0
 IARD_SPLIT_BY = "actor"      # held-out actors (train_ratio of actors for training)
 IARD_TRAIN_RATIO = 0.8
-
-
-def config_gen():
-    return Config.from_globals()

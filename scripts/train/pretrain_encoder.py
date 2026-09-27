@@ -2,7 +2,7 @@
 
 Run with a config from ``configs/pretrain``::
 
-    ttvidt-run scripts/train/pretrain_encoder.py -c configs/pretrain/ttvidt_tt3d_diffcomp.py
+    kogine run scripts/train/pretrain_encoder.py -c configs/pretrain/ttvidt_tt3d_diffcomp.py
 
 Every UPPERCASE name below is a default that the config overrides. The model is
 ``ttvidt.trainer.TTVidTrainer``: an encoder (``BACKBONE_ARCH``) that turns an
@@ -195,6 +195,7 @@ def main():
     else:
         model = TTVidTrainer(**kwargs)
 
+    print("run id:", RUN_ID)
     if LOGGER == "wandb":
         from lightning.pytorch.loggers import WandbLogger
 

@@ -5,8 +5,6 @@ Clips are the untrimmed observation windows ending 1 s before each action
 centered. Probe the features with ``scripts/eval/probe.py --datasets ek100_verb_anticip``.
 """
 
-from ttvidt.config import Config
-
 CHECKPOINT_PATH = None
 DATASETS = "ek100_verb_anticip"
 DATA_ROOT = "eval-dataset"
@@ -19,7 +17,3 @@ RESIZE = (256, 256)
 BATCH_SIZE = 64
 NUM_WORKERS = 16
 FEATURE_DIR = "features"
-
-
-def config_gen():
-    return Config.from_globals()

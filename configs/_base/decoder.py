@@ -16,8 +16,6 @@ Both use a diffusion head in the 32x32x4 latent space of the frozen frame VAE,
 import os
 import random
 
-from ttvidt.config import Config  # noqa: F401  (re-exported for child configs)
-
 DATA_ROOT = os.environ.get("TTVIDT_DATA", "data")
 
 _DIT = {"image_dim": 4, "patch_size": 2, "decoder_style": "dit", "decode_mode": "diffusion",

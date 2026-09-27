@@ -17,7 +17,7 @@ import lightning.pytorch as pl
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from ttvidt.config import load_config
+from kohakuengine import load_config_file
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -44,7 +44,7 @@ def main():
     spec = importlib.util.spec_from_file_location("pretrain_encoder", REPO / "scripts/train/pretrain_encoder.py")
     script = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(script)
-    cfg = load_config(a.config)
+    cfg = load_config_file(a.config)
     for k, v in cfg.globals_dict.items():
         setattr(script, k, v)
     script.DECODER_PRETRAINED = None  # weights irrelevant for a smoke test; avoids a download

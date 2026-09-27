@@ -17,9 +17,17 @@ bash scripts/eval/run_frozen_eval.sh ttvidt/<run_id>/checkpoints/epoch=7.ckpt my
 
 or step by step:
 
+```python
+# configs/eval/my_model.py
+from kohakuengine import use_config
+
+use_config("frozen.py")
+CHECKPOINT_PATH = "ttvidt/<run_id>/checkpoints/epoch=7.ckpt"
+MODEL_NAME = "my_model"
+```
+
 ```bash
-ttvidt-run scripts/eval/extract_features.py -c configs/eval/frozen.py \
-    CHECKPOINT_PATH=ttvidt/<run_id>/checkpoints/epoch=7.ckpt MODEL_NAME=my_model
+kogine run scripts/eval/extract_features.py -c configs/eval/my_model.py
 python scripts/eval/check_features.py my_model --datasets hmdb51,arid,iard,jester,sthsthv2
 python scripts/eval/probe.py my_model --seed 0 --gpu --out eval-results/my_model/my_model__seed0.json
 python scripts/eval/aggregate_results.py eval-results/my_model
@@ -50,9 +58,10 @@ benchmarks (see [data.md](data.md#benchmarks)).
 
 ## EPIC-Kitchens verb anticipation (Table 4, "EK-V Antic.")
 
+Same as above with `use_config("ek100_anticipation.py")` as the base:
+
 ```bash
-ttvidt-run scripts/eval/extract_features.py -c configs/eval/ek100_anticipation.py \
-    CHECKPOINT_PATH=<checkpoint> MODEL_NAME=my_model
+kogine run scripts/eval/extract_features.py -c configs/eval/my_model_antic.py
 python scripts/eval/probe.py my_model --datasets ek100_verb_anticip --seed 0 --gpu
 ```
 
