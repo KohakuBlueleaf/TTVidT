@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TT-VidT: Decoupling the Temporal Axis for Efficient Motion-Centric Video Pretraining</title>
+<meta name="description" content="TT-VidT (NeurIPS 2026): a video self-supervised design that keeps appearance in a wide first-frame anchor and routes frame-to-frame change through a compact Temporal Transfer path trained by Diff Compression.">
+<meta property="og:title" content="TT-VidT: Decoupling the Temporal Axis for Efficient Motion-Centric Video Pretraining">
+<meta property="og:description" content="NeurIPS 2026. A compact Temporal Transfer path plus Diff Compression: the only method in its matched comparison to lead Jester, SSv2, ARID and Diving48 at about half the encoder FLOPs.">
+<meta property="og:image" content="https://kohakublueleaf.github.io/TTVidT/static/teaser.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #fbfaf7; --fg: #1d1d1f; --muted: #5d5d63; --line: #e4e1da; --card: #ffffff;
+  --accent: #d9660b; --accent-soft: #fdebd8; --blue: #3c6e9f; --blue-soft: #e3edf7; --green-soft: #e6f2e0;
+  --code-bg: #f3f1ec;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141416; --fg: #ecebe8; --muted: #a3a2a0; --line: #2d2d31; --card: #1c1c1f;
+    --accent: #f5933d; --accent-soft: #3a2616; --blue: #8fb6de; --blue-soft: #1d2a37; --green-soft: #1e2c1c;
+    --code-bg: #1f1f23;
+  }
+  figure img.fig { background: #ffffff; border-radius: 6px; }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 400 17px/1.65 "Source Serif 4", Georgia, serif;
+}
+.wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+header { text-align: center; padding: 56px 0 24px; }
+.venue {
+  display: inline-block; font: 600 13px/1 Inter, system-ui, sans-serif; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--accent); background: var(--accent-soft);
+  padding: 7px 12px; border-radius: 999px; margin-bottom: 18px;
+}
+h1 { font-weight: 700; font-size: clamp(28px, 4.6vw, 44px); line-height: 1.15; margin: 0 auto 22px; max-width: 860px; }
+h1 .name { color: var(--accent); }
+.authors { font: 500 17px/1.8 Inter, system-ui, sans-serif; margin: 0 auto 6px; max-width: 760px; }
+.authors span { white-space: nowrap; margin: 0 10px; }
+.authors sup, .affils sup { font-size: .7em; color: var(--muted); }
+.affils { font: 400 15px/1.7 Inter, system-ui, sans-serif; color: var(--muted); margin: 0 auto 4px; }
+.affils span { white-space: nowrap; margin: 0 8px; }
+.corr { font: 400 13.5px/1.6 Inter, system-ui, sans-serif; color: var(--muted); margin-bottom: 22px; }
+.buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+  font: 600 15px/1 Inter, system-ui, sans-serif; color: #fff; background: var(--fg);
+  padding: 12px 18px; border-radius: 999px; border: 1px solid var(--fg);
+}
+.btn:hover { opacity: .88; }
+.btn.disabled { background: transparent; color: var(--muted); border-color: var(--line); cursor: default; }
+@media (prefers-color-scheme: dark) { .btn { color: #141416; } }
+.btn svg { width: 17px; height: 17px; fill: currentColor; }
+section { padding: 30px 0; border-top: 1px solid var(--line); }
+section:first-of-type { border-top: 0; }
+h2 { font: 600 24px/1.3 "Source Serif 4", Georgia, serif; margin: 0 0 14px; }
+h3 { font: 600 16px/1.4 Inter, system-ui, sans-serif; margin: 26px 0 8px; }
+p { margin: 0 0 14px; }
+figure { margin: 18px 0 8px; }
+figure img { width: 100%; height: auto; display: block; }
+figcaption { font: 400 14px/1.6 Inter, system-ui, sans-serif; color: var(--muted); margin-top: 10px; }
+.tldr {
+  font-size: 19px; line-height: 1.6; background: var(--card); border: 1px solid var(--line);
+  border-left: 4px solid var(--accent); border-radius: 8px; padding: 16px 20px; margin: 8px 0 0;
+}
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 18px 0 4px; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.stat b { display: block; font: 700 26px/1.2 Inter, system-ui, sans-serif; color: var(--accent); }
+.stat span { font: 400 14px/1.45 Inter, system-ui, sans-serif; color: var(--muted); }
+.tablewrap { overflow-x: auto; margin: 12px 0 6px; -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; width: 100%; font: 400 14.5px/1.4 Inter, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+thead th { font-weight: 600; border-bottom: 2px solid var(--fg); }
+tr.ours td { background: var(--accent-soft); font-weight: 600; }
+td.best { font-weight: 700; }
+.note { font: 400 13.5px/1.55 Inter, system-ui, sans-serif; color: var(--muted); }
+pre {
+  background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 16px;
+  overflow-x: auto; font: 400 13.5px/1.55 "JetBrains Mono", ui-monospace, monospace; margin: 0;
+}
+.copy { float: right; font: 500 13px/1 Inter, system-ui, sans-serif; background: var(--card); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; margin: 0 0 8px 8px; }
+footer { padding: 30px 0 60px; border-top: 1px solid var(--line); font: 400 14px/1.6 Inter, system-ui, sans-serif; color: var(--muted); }
+a { color: var(--blue); }
+@media (max-width: 600px) {
+  body { font-size: 16px; }
+  header { padding-top: 36px; }
+  .authors span, .affils span { margin: 0 6px; }
+}
+</style>
+</head>
+<body>
+<header class="wrap">
+  <div class="venue">NeurIPS 2026</div>
+  <h1><span class="name">TT-VidT</span>: Decoupling the Temporal Axis for Efficient Motion-Centric Video Pretraining</h1>
+  <div class="authors">
+    <span>Shih-Ying Yeh<sup>♠♡†</sup></span>
+    <span>Daniel Z. Kaplan<sup>◇</sup></span>
+    <span>Xuehai Wang<sup>♣</sup></span>
+    <span>Fu-En Yang<sup>★</sup></span>
+    <span>Min-Hung Chen<sup>★</sup></span>
+    <span>Shang-Hong Lai<sup>♠</sup></span>
+  </div>
+  <div class="affils">
+    <span><sup>♠</sup>National Tsing Hua University</span>
+    <span><sup>♡</sup>Comfy Org Research</span>
+    <span><sup>◇</sup>Independent</span>
+    <span><sup>♣</sup>Karolinska Institutet</span>
+    <span><sup>★</sup>NVIDIA</span>
+  </div>
+  <div class="corr">† Corresponding author: kohaku@kblueleaf.net</div>
+  <div class="buttons">
+    <span class="btn disabled" title="The arXiv version is coming soon">
+      <svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6zM14 3.5V8h4.5"/></svg>Paper (arXiv soon)</span>
+    <a class="btn" href="https://github.com/KohakuBlueleaf/TTVidT">
+      <svg viewBox="0 0 24 24"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>Code</a>
+    <a class="btn" href="#bibtex">
+      <svg viewBox="0 0 24 24"><path d="M4 4h16v2H4zm0 5h16v2H4zm0 5h10v2H4zm0 5h10v2H4z"/></svg>BibTeX</a>
+  </div>
+</header>
+
+<main class="wrap">
+<section>
+  <figure>
+    <img class="fig" src="static/teaser.jpg" alt="Three encoder designs: spatial-only per-frame encoders, global 3D mixing, and TT-VidT with an explicit temporal axis that passes motion tokens across frames.">
+    <figcaption>Spatial-only encoders never exchange information across frames, and global 3D mixing entangles appearance with motion throughout the network. TT-VidT keeps a wide per-frame spatial path for appearance and routes frame-to-frame change through a compact Temporal Transfer path that emits one set of motion tokens per frame.</figcaption>
+  </figure>
+  <p class="tldr"><b>TL;DR.</b> Under a matched recipe of 24 architecture&ndash;objective combinations, only the pairing of a compact Temporal Transfer path with Diff Compression learns a representation that reads motion rather than appearance. TT-VidT leads Jester, Something-Something V2, ARID and Diving48 at the same time, at about half the encoder FLOPs of VideoMAE, V-JEPA 2 and DisMo.</p>
+</section>
+
+<section>
+  <h2>Abstract</h2>
+  <p>Comparisons in video self-supervised learning often evaluate complete training recipes rather than isolating the method itself: architecture, objective, data exposure, schedule, scale, and decoder capacity can all vary at once. This makes it hard to identify which choices yield motion-prioritized representations, whose gains concentrate on frame-to-frame change while retaining useful appearance. We address this with a matched 4&times;6&nbsp;=&nbsp;24 architecture&ndash;objective study at roughly 170M&ndash;190M encoder scale on ~1.7M OpenVid and Moments-in-Time v2 clips for 8 epochs, and propose TT-VidT. TT-VidT combines a DINOv3-initialized ViT-B/16 per-frame spatial path with a compact Temporal Transfer Layer, trained by Diff Compression to reconstruct target frames from a first-frame appearance anchor and frame-specific motion tokens. The sweep shows that TT3D with Diff Compression, not either component alone, enters the strongest motion-sensitive regime, and decoder ablations favor a compact video-pretrained decoder. In final comparison, TT-VidT leads Jester, Something-Something V2, ARID, and Diving48 fine-tuning simultaneously, improving over the strongest non-TT row by 54%&ndash;121%, while using 48% fewer encoder FLOPs than DisMo and 55% fewer than VideoMAE or V-JEPA 2. HMDB51, IARD, and EPIC-Kitchens bound the claim.</p>
+</section>
+
+<section>
+  <h2>Method</h2>
+  <p>The encoder interleaves DINOv3 ViT-B/16 layers, applied to each frame independently, with a <b>Temporal Transfer</b> layer. Eight learnable motion tokens join each frame's spatial tokens in the ViT self-attention, and the Temporal Transfer layer then lets the motion tokens, together with a 4&times;-downsampled view of the spatial tokens, attend across frames under a block-causal mask. The cross-frame sequence has 192 tokens instead of 2,048.</p>
+  <p><b>Diff Compression</b> trains the encoder: a small diffusion decoder reconstructs every later frame from the <i>first</i> frame's full spatial features and that frame's motion tokens alone. Appearance is always available from the wide anchor, so the only useful content of a motion token is what the anchor cannot supply, which is how the frame has changed.</p>
+  <figure>
+    <img class="fig" src="static/arch.png" alt="TT-VidT pretraining: the encoder interleaves 2D ViT layers with Temporal Transfer; the Diff Compression decoder denoises each target frame conditioned on the first-frame anchor and that frame's motion tokens.">
+    <figcaption>TT-VidT pretraining. Left: the encoder. Right: the Diff Compression decoder, conditioned on the first-frame anchor and one frame's motion tokens.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>Results</h2>
+  <div class="stats">
+    <div class="stat"><b>73.25</b><span>Jester, frozen attentive probe (strongest baseline 46.95)</span></div>
+    <div class="stat"><b>25.92</b><span>Something-Something V2, frozen (strongest baseline 14.95)</span></div>
+    <div class="stat"><b>&le;1%</b><span>of clips keep their old label when the motion is inverted (baselines 9&ndash;43%)</span></div>
+    <div class="stat"><b>456 GF</b><span>encoder FLOPs, about half of VideoMAE, V-JEPA 2 and DisMo</span></div>
+  </div>
+
+  <h3>The only design to lead every motion-heavy benchmark</h3>
+  <p>All methods share one pretraining recipe: the same data, schedule and encoder scale. Frozen attentive probing on six datasets, plus Diving48 full finetuning and EPIC-Kitchens verb anticipation.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Method</th><th>HMDB</th><th>ARID</th><th>IARD</th><th>Jester</th><th>SSv2</th><th>EK-V</th><th>D48 FT</th><th>EK-V Antic.</th></tr></thead>
+    <tbody>
+      <tr><td>V-JEPA 2</td><td>22.70</td><td>16.01</td><td>79.34</td><td>27.41</td><td>10.59</td><td>32.61</td><td>8.02</td><td class="best">23.07</td></tr>
+      <tr><td>VideoMAE</td><td class="best">27.73</td><td>24.37</td><td>80.44</td><td>39.47</td><td>14.95</td><td class="best">35.62</td><td>8.43</td><td>22.81</td></tr>
+      <tr><td>DisMo (dual aug.)</td><td>22.57</td><td>22.45</td><td class="best">89.89</td><td>46.95</td><td>13.33</td><td>31.97</td><td>8.12</td><td>22.72</td></tr>
+      <tr class="ours"><td>TT-VidT (ours)</td><td>25.15</td><td class="best">37.47</td><td>74.84</td><td class="best">73.25</td><td class="best">25.92</td><td>32.54</td><td class="best">18.63</td><td>21.33</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">HMDB51, IARD and EPIC-Kitchens reward appearance, scene context or anticipation, and bound the claim: TT-VidT targets motion-sensitive recognition.</p>
+
+  <h3>The representation reads motion, not appearance</h3>
+  <p>Something-Something V2 contains class pairs that are exact mirrors under a horizontal flip, a vertical flip, or time reversal. We invert the motion of correctly classified clips and ask whether a frozen probe follows. A <i>flip</i> to the mirror class means the encoder re-read the motion, and a <i>stay</i> means appearance decided. TT-VidT follows the inverted motion on nearly every clip, while every baseline keeps part of its answers, most of all under time reversal, where no pixel changes.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Model</th><th>H-flip (flip / stay)</th><th>V-flip</th><th>Time reversal</th><th>Shuffle drop</th></tr></thead>
+    <tbody>
+      <tr class="ours"><td>TT-VidT (ours)</td><td>81.2 / 0.6</td><td>59.5 / 0.9</td><td>71.4 / 1.0</td><td>50.9%</td></tr>
+      <tr><td>VideoMAE</td><td>66.9 / 9.7</td><td>55.1 / 9.1</td><td>38.6 / 20.9</td><td>50.0%</td></tr>
+      <tr><td>DisMo</td><td>34.5 / 35.0</td><td>8.4 / 43.2</td><td>34.5 / 16.4</td><td>31.9%</td></tr>
+      <tr><td>DINOv3, single frame</td><td>37.1 / 24.5</td><td>11.8 / 22.7</td><td>0.0 / 100.0</td><td>3.1%</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>The gain belongs to the method</h3>
+  <figure>
+    <img class="fig" src="static/review_panels.png" alt="Four panels: the motion-inversion probe, frozen versus finetuned accuracy on Jester, three-seed means with error bars, and SSv2 gain over a 15-epoch continuation.">
+    <figcaption>From left: the motion-inversion probe; the frozen probe against 30 epochs of end-to-end finetuning on Jester; the canonical configurations over three pretraining and three probe seeds; and the SSv2 gain over a 15-epoch continuation (dotted line: the 8-epoch budget).</figcaption>
+  </figure>
+  <p>End-to-end finetuning saturates the baselines near 51.5 on Jester, well below TT-VidT's frozen probe. A ViT3D initialized from DINOv3 moves only appearance-heavy IARD, so the image substrate does not create the motion regime. A VTok-style explicit feature difference is weaker than the learned motion token on all five datasets. The ordering holds across seeds and at a near-doubled training budget.</p>
+</section>
+
+<section id="bibtex">
+  <h2>BibTeX</h2>
+  <button class="copy" type="button" onclick="navigator.clipboard.writeText(document.getElementById('bib').innerText).then(()=>{this.textContent='Copied'})">Copy</button>
+<pre id="bib">@inproceedings{yeh2026ttvidt,
+  title     = {TT-VidT: Decoupling the Temporal Axis for Efficient Motion-Centric Video Pretraining},
+  author    = {Yeh, Shih-Ying and Kaplan, Daniel Z. and Wang, Xuehai and Yang, Fu-En and Chen, Min-Hung and Lai, Shang-Hong},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year      = {2026}
+}</pre>
+</section>
+</main>
+
+<footer class="wrap">
+  This work is supported by the NVIDIA Taiwan AI Research &amp; Development Center (TRDC).
+  Code released under the <a href="https://github.com/KohakuBlueleaf/TTVidT/blob/main/LICENSE">Apache License 2.0</a>.
+</footer>
+</body>
+</html>
