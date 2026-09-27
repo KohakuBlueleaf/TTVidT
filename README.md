@@ -1,4 +1,4 @@
-# TT-VidT
+# [NeurIPS 2026] TT-VidT
 
 **Decoupling the Temporal Axis for Efficient Motion-Centric Video Pretraining**
 
