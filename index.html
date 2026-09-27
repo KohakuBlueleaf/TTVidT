@@ -9,89 +9,84 @@
 <meta property="og:description" content="NeurIPS 2026. A compact Temporal Transfer path plus Diff Compression: the only method in its matched comparison to lead Jester, SSv2, ARID and Diving48 at about half the encoder FLOPs.">
 <meta property="og:image" content="https://kohakublueleaf.github.io/TTVidT/static/teaser.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+/* KohakuTerrarium design language: warm stone neutrals, iolite primary, gem accents, flat surfaces. */
 :root {
-  --bg: #fbfaf7; --fg: #1d1d1f; --muted: #5d5d63; --line: #e4e1da; --card: #ffffff;
-  --accent: #d9660b; --accent-soft: #fdebd8; --blue: #3c6e9f; --blue-soft: #e3edf7; --green-soft: #e6f2e0;
-  --code-bg: #f3f1ec;
+  --bg: #f7f5f2; --surface: #ffffff; --surface-alt: #efece7; --border: #e0dbd4;
+  --text: #3a3632; --muted: #8a8480; --faint: #b5b0aa;
+  --primary: #5a4fcf; --primary-tint: #ddd0f0; --primary-soft: #eeedfa; --primary-shade: #4840a6;
+  --sapphire: #0f52ba; --amber-tint: #f5e6c8;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #141416; --fg: #ecebe8; --muted: #a3a2a0; --line: #2d2d31; --card: #1c1c1f;
-    --accent: #f5933d; --accent-soft: #3a2616; --blue: #8fb6de; --blue-soft: #1d2a37; --green-soft: #1e2c1c;
-    --code-bg: #1f1f23;
+    --bg: #1a1816; --surface: #252220; --surface-alt: #1e1c1a; --border: #3d3835;
+    --text: #e8e0d8; --muted: #8a8078; --faint: #5a5550;
+    --primary: #8b83db; --primary-tint: #ddd0f0; --primary-soft: #2b2740; --primary-shade: #ddd0f0;
+    --sapphire: #8fb2ea; --amber-tint: #3a3020;
   }
-  figure img.fig { background: #ffffff; border-radius: 6px; }
+  figure img.fig { background: #ffffff; }
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-body {
-  margin: 0; background: var(--bg); color: var(--fg);
-  font: 400 17px/1.65 "Source Serif 4", Georgia, serif;
-}
-.wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
-header { text-align: center; padding: 56px 0 24px; }
-.venue {
-  display: inline-block; font: 600 13px/1 Inter, system-ui, sans-serif; letter-spacing: .06em;
-  text-transform: uppercase; color: var(--accent); background: var(--accent-soft);
-  padding: 7px 12px; border-radius: 999px; margin-bottom: 18px;
-}
-h1 { font-weight: 700; font-size: clamp(28px, 4.6vw, 44px); line-height: 1.15; margin: 0 auto 22px; max-width: 860px; }
-h1 .name { color: var(--accent); }
-.authors { font: 500 17px/1.8 Inter, system-ui, sans-serif; margin: 0 auto 6px; max-width: 760px; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.7 Inter, system-ui, sans-serif; }
+.wrap { max-width: 1000px; margin: 0 auto; padding: 0 16px; }
+@media (min-width: 640px) { .wrap { padding: 0 24px; } }
+header { text-align: center; padding: 56px 0 28px; }
+.venue { display: inline-block; font: 600 12px/1 Inter, system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--primary-shade); background: var(--primary-tint); padding: 7px 12px; border-radius: 999px; margin-bottom: 18px; }
+@media (prefers-color-scheme: dark) { .venue { color: #312a7a; } }
+h1 { font-weight: 700; font-size: clamp(28px, 4.4vw, 42px); line-height: 1.18; letter-spacing: -.01em; margin: 0 auto 22px; max-width: 880px; }
+h1 .name { color: var(--primary); }
+.authors { font-weight: 600; font-size: 17px; line-height: 1.8; margin: 0 auto 6px; max-width: 780px; }
 .authors span { white-space: nowrap; margin: 0 10px; }
-.authors sup, .affils sup { font-size: .7em; color: var(--muted); }
-.affils { font: 400 15px/1.7 Inter, system-ui, sans-serif; color: var(--muted); margin: 0 auto 4px; }
+.authors sup, .affils sup { font-size: .7em; color: var(--muted); font-weight: 500; }
+.affils { font-size: 15px; color: var(--muted); margin: 0 auto 4px; }
 .affils span { white-space: nowrap; margin: 0 8px; }
-.corr { font: 400 13.5px/1.6 Inter, system-ui, sans-serif; color: var(--muted); margin-bottom: 22px; }
+.corr { font-size: 13.5px; color: var(--muted); margin-bottom: 24px; }
 .buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-.btn {
-  display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
-  font: 600 15px/1 Inter, system-ui, sans-serif; color: #fff; background: var(--fg);
-  padding: 12px 18px; border-radius: 999px; border: 1px solid var(--fg);
-}
-.btn:hover { opacity: .88; }
-.btn.disabled { background: transparent; color: var(--muted); border-color: var(--line); cursor: default; }
-@media (prefers-color-scheme: dark) { .btn { color: #141416; } }
-.btn svg { width: 17px; height: 17px; fill: currentColor; }
-section { padding: 30px 0; border-top: 1px solid var(--line); }
+.btn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font: 500 14px/1 Inter, system-ui, sans-serif;
+  color: #fff; background: #5a4fcf; padding: 11px 18px; border-radius: 8px; border: 0; transition: box-shadow .15s, background .15s; }
+.btn:hover { background: #4840a6; box-shadow: 0 4px 14px rgba(90, 79, 207, .35); }
+.btn.secondary { background: var(--surface-alt); color: var(--text); border: 1px solid var(--border); }
+.btn.secondary:hover { box-shadow: none; background: var(--border); }
+.btn.disabled { background: transparent; color: var(--faint); border: 1px solid var(--border); cursor: default; }
+.btn.disabled:hover { box-shadow: none; }
+.btn svg { width: 16px; height: 16px; fill: currentColor; }
+section { padding: 32px 0; border-top: 1px solid var(--border); }
 section:first-of-type { border-top: 0; }
-h2 { font: 600 24px/1.3 "Source Serif 4", Georgia, serif; margin: 0 0 14px; }
-h3 { font: 600 16px/1.4 Inter, system-ui, sans-serif; margin: 26px 0 8px; }
+h2 { font-size: 22px; font-weight: 700; line-height: 1.3; margin: 0 0 14px; }
+h3 { font-size: 16px; font-weight: 600; line-height: 1.4; margin: 28px 0 8px; }
 p { margin: 0 0 14px; }
 figure { margin: 18px 0 8px; }
-figure img { width: 100%; height: auto; display: block; }
-figcaption { font: 400 14px/1.6 Inter, system-ui, sans-serif; color: var(--muted); margin-top: 10px; }
-.tldr {
-  font-size: 19px; line-height: 1.6; background: var(--card); border: 1px solid var(--line);
-  border-left: 4px solid var(--accent); border-radius: 8px; padding: 16px 20px; margin: 8px 0 0;
-}
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 18px 0 4px; }
-.stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
-.stat b { display: block; font: 700 26px/1.2 Inter, system-ui, sans-serif; color: var(--accent); }
-.stat span { font: 400 14px/1.45 Inter, system-ui, sans-serif; color: var(--muted); }
-.tablewrap { overflow-x: auto; margin: 12px 0 6px; -webkit-overflow-scrolling: touch; }
-table { border-collapse: collapse; width: 100%; font: 400 14.5px/1.4 Inter, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
-th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+figure img { width: 100%; height: auto; display: block; border-radius: 12px; }
+figcaption { font-size: 14px; line-height: 1.6; color: var(--muted); margin-top: 10px; }
+.tldr { font-size: 17px; line-height: 1.65; background: var(--surface); border: 1px solid var(--border);
+  border-left: 4px solid var(--primary); border-radius: 12px; padding: 16px 20px; margin: 10px 0 0; }
+.setup { background: var(--surface-alt); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; font-size: 15px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 18px 0 4px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.stat:hover { box-shadow: 0 1px 3px rgba(0, 0, 0, .06); }
+.stat b { display: block; font-size: 26px; font-weight: 700; line-height: 1.2; color: var(--primary); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 14px; line-height: 1.45; color: var(--muted); }
+.tablewrap { overflow-x: auto; margin: 12px 0 6px; -webkit-overflow-scrolling: touch; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 12px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+th, td { padding: 9px 12px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
 th:first-child, td:first-child { text-align: left; }
-thead th { font-weight: 600; border-bottom: 2px solid var(--fg); }
-tr.ours td { background: var(--accent-soft); font-weight: 600; }
-td.best { font-weight: 700; }
-.note { font: 400 13.5px/1.55 Inter, system-ui, sans-serif; color: var(--muted); }
-pre {
-  background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 16px;
-  overflow-x: auto; font: 400 13.5px/1.55 "JetBrains Mono", ui-monospace, monospace; margin: 0;
-}
-.copy { float: right; font: 500 13px/1 Inter, system-ui, sans-serif; background: var(--card); color: var(--fg);
-  border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; margin: 0 0 8px 8px; }
-footer { padding: 30px 0 60px; border-top: 1px solid var(--line); font: 400 14px/1.6 Inter, system-ui, sans-serif; color: var(--muted); }
-a { color: var(--blue); }
-@media (max-width: 600px) {
-  body { font-size: 16px; }
-  header { padding-top: 36px; }
-  .authors span, .affils span { margin: 0 6px; }
-}
+thead th { font-weight: 600; color: var(--muted); background: var(--surface-alt); }
+tr.ours td { background: var(--primary-soft); font-weight: 600; }
+td.best { font-weight: 700; color: var(--primary); }
+.note { font-size: 13.5px; line-height: 1.55; color: var(--muted); }
+pre { background: var(--surface-alt); border: 1px solid var(--border); border-radius: 12px; padding: 16px; overflow-x: auto;
+  font: 400 13px/1.6 "JetBrains Mono", "Fira Code", ui-monospace, monospace; margin: 0; }
+.copy { float: right; font: 500 13px/1 Inter, system-ui, sans-serif; background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; cursor: pointer; margin: 0 0 8px 8px; }
+.copy:hover { border-color: var(--primary); }
+footer { padding: 30px 0 60px; border-top: 1px solid var(--border); font-size: 14px; line-height: 1.6; color: var(--muted); }
+a { color: var(--primary); }
+@media (max-width: 600px) { header { padding-top: 36px; } .authors span, .affils span { margin: 0 6px; } }
 </style>
 </head>
 <body>
@@ -119,7 +114,7 @@ a { color: var(--blue); }
       <svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6zM14 3.5V8h4.5"/></svg>Paper (arXiv soon)</span>
     <a class="btn" href="https://github.com/KohakuBlueleaf/TTVidT">
       <svg viewBox="0 0 24 24"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>Code</a>
-    <a class="btn" href="#bibtex">
+    <a class="btn secondary" href="#bibtex">
       <svg viewBox="0 0 24 24"><path d="M4 4h16v2H4zm0 5h16v2H4zm0 5h10v2H4zm0 5h10v2H4z"/></svg>BibTeX</a>
   </div>
 </header>
@@ -150,6 +145,7 @@ a { color: var(--blue); }
 
 <section>
   <h2>Results</h2>
+  <p class="setup"><b>Setup.</b> Every model in this study is trained from the same matched recipe, a deliberately small one: about 1.7M OpenVid and Moments-in-Time v2 clips, 8 epochs (about 13.6M samples seen), and encoders of roughly 170M&ndash;190M parameters. This budget matches DisMo's published setting. It is far below the native recipes of VideoMAE or V-JEPA 2, so absolute numbers are lower than their reported ones, but every difference below comes from the architecture and objective rather than from data or compute. We evaluate frozen features with an attentive probe unless a table says finetuning.</p>
   <div class="stats">
     <div class="stat"><b>73.25</b><span>Jester, frozen attentive probe (strongest baseline 46.95)</span></div>
     <div class="stat"><b>25.92</b><span>Something-Something V2, frozen (strongest baseline 14.95)</span></div>
@@ -198,10 +194,12 @@ a { color: var(--blue); }
   <h2>BibTeX</h2>
   <button class="copy" type="button" onclick="navigator.clipboard.writeText(document.getElementById('bib').innerText).then(()=>{this.textContent='Copied'})">Copy</button>
 <pre id="bib">@inproceedings{yeh2026ttvidt,
-  title     = {TT-VidT: Decoupling the Temporal Axis for Efficient Motion-Centric Video Pretraining},
-  author    = {Yeh, Shih-Ying and Kaplan, Daniel Z. and Wang, Xuehai and Yang, Fu-En and Chen, Min-Hung and Lai, Shang-Hong},
-  booktitle = {Advances in Neural Information Processing Systems},
-  year      = {2026}
+ author = {Yeh, Shih-Ying and Kaplan, Daniel Z. and Wang, Xuehai and Yang, Fu-En and Chen, Min-Hung and Lai, Shang-Hong},
+ booktitle = {Advances in Neural Information Processing Systems},
+ publisher = {Curran Associates, Inc.},
+ title = {TT-VidT: Decoupling the Temporal Axis for Efficient Motion-Centric Video Pretraining},
+ volume = {39},
+ year = {2026}
 }</pre>
 </section>
 </main>
