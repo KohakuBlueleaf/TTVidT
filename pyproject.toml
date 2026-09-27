@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ttvidt"
+version = "0.1.0"
+description = "TT-VidT: Decoupling the Temporal Axis for Efficient Motion-Centric Video Pretraining"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Shih-Ying Yeh (KohakuBlueLeaf)", email = "apolloyeh0123@gmail.com" }]
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.4",
+    "torchvision",
+    "transformers>=4.56",      # DINOv3
+    "lightning>=2.4",
+    "anyschedule",
+    "optimfactory",
+    "huggingface_hub",
+    "safetensors",
+    "numpy",
+    "pillow",
+    "tqdm",
+    "wandb",
+]
+
+[project.optional-dependencies]
+video = ["torchcodec", "av"]            # raw video files instead of tar-of-JPEG
+data = ["opencv-python", "pyarrow"]     # dataset conversion scripts
+vjepa2 = ["pyyaml"]                     # V-JEPA 2 baseline evaluation
+analysis = ["matplotlib"]
+
+[project.scripts]
+ttvidt-run = "ttvidt.config:main"
+
+[project.urls]
+Homepage = "https://github.com/KohakuBlueleaf/TTVidT"
+
+[tool.setuptools.packages.find]
+where = ["src"]
