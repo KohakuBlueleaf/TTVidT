@@ -111,8 +111,8 @@ a { color: var(--primary); }
   </div>
   <div class="corr">† Corresponding author: kohaku@kblueleaf.net</div>
   <div class="buttons">
-    <span class="btn disabled" title="The arXiv version is coming soon">
-      <svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6zM14 3.5V8h4.5"/></svg>Paper (arXiv soon)</span>
+    <a class="btn" href="https://openreview.net/forum?id=ELiMecKQps">
+      <svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6zM14 3.5V8h4.5"/></svg>Paper (OpenReview)</a>
     <a class="btn" href="https://github.com/KohakuBlueleaf/TTVidT">
       <svg viewBox="0 0 24 24"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>Code</a>
     <a class="btn secondary" href="#bibtex">
@@ -126,12 +126,12 @@ a { color: var(--primary); }
     <img class="fig" src="static/teaser.jpg" alt="Three encoder designs: spatial-only per-frame encoders, global 3D mixing, and TT-VidT with an explicit temporal axis that passes motion tokens across frames.">
     <figcaption>Spatial-only encoders never exchange information across frames, and global 3D mixing entangles appearance with motion throughout the network. TT-VidT keeps a wide per-frame spatial path for appearance and routes frame-to-frame change through a compact Temporal Transfer path that emits one set of motion tokens per frame.</figcaption>
   </figure>
-  <p class="tldr"><b>TL;DR.</b> Under a matched recipe of 24 architecture&ndash;objective combinations, only the pairing of a compact Temporal Transfer path with Diff Compression learns a representation that reads motion rather than appearance. TT-VidT leads Jester, Something-Something V2, ARID and Diving48 at the same time, at about half the encoder FLOPs of VideoMAE, V-JEPA 2 and DisMo.</p>
+  <p class="tldr"><b>TL;DR.</b> Under a matched recipe of 24 architecture-objective combinations, only the pairing of a compact Temporal Transfer path with Diff Compression learns a representation that reads motion rather than appearance. TT-VidT leads Jester, Something-Something V2, ARID and Diving48 at the same time, at about half the encoder FLOPs of VideoMAE, V-JEPA 2 and DisMo.</p>
 </section>
 
 <section>
   <h2>Abstract</h2>
-  <p>Comparisons in video self-supervised learning often evaluate complete training recipes rather than isolating the method itself: architecture, objective, data exposure, schedule, scale, and decoder capacity can all vary at once. This makes it hard to identify which choices yield motion-prioritized representations, whose gains concentrate on frame-to-frame change while retaining useful appearance. We address this with a matched 4&times;6&nbsp;=&nbsp;24 architecture&ndash;objective study at roughly 170M&ndash;190M encoder scale on ~1.7M OpenVid and Moments-in-Time v2 clips for 8 epochs, and propose TT-VidT. TT-VidT combines a DINOv3-initialized ViT-B/16 per-frame spatial path with a compact Temporal Transfer Layer, trained by Diff Compression to reconstruct target frames from a first-frame appearance anchor and frame-specific motion tokens. The sweep shows that TT3D with Diff Compression, not either component alone, enters the strongest motion-sensitive regime, and decoder ablations favor a compact video-pretrained decoder. In final comparison, TT-VidT leads Jester, Something-Something V2, ARID, and Diving48 fine-tuning simultaneously, improving over the strongest non-TT row by 54%&ndash;121%, while using 48% fewer encoder FLOPs than DisMo and 55% fewer than VideoMAE or V-JEPA 2. HMDB51, IARD, and EPIC-Kitchens bound the claim.</p>
+  <p>Comparisons in video self-supervised learning often evaluate complete training recipes rather than isolating the method itself: architecture, objective, data exposure, schedule, scale, and decoder capacity can all vary at once. This makes it hard to identify which choices yield motion-prioritized representations, whose gains concentrate on frame-to-frame change while retaining useful appearance. We address this with a matched 4&times;6&nbsp;=&nbsp;24 architecture-objective study at roughly 170M&sim;190M encoder scale on ~1.7M OpenVid and Moments-in-Time v2 clips for 8 epochs, and propose TT-VidT. TT-VidT combines a DINOv3-initialized ViT-B/16 per-frame spatial path with a compact Temporal Transfer Layer, trained by Diff Compression to reconstruct target frames from a first-frame appearance anchor and frame-specific motion tokens. The sweep shows that TT3D with Diff Compression, not either component alone, enters the strongest motion-sensitive regime, and decoder ablations favor a compact video-pretrained decoder. In final comparison, TT-VidT leads Jester, Something-Something V2, ARID, and Diving48 fine-tuning simultaneously, improving over the strongest non-TT row by 54%&sim;121%, while using 48% fewer encoder FLOPs than DisMo and 55% fewer than VideoMAE or V-JEPA 2. HMDB51, IARD, and EPIC-Kitchens bound the claim.</p>
 </section>
 
 <section>
@@ -146,11 +146,11 @@ a { color: var(--primary); }
 
 <section>
   <h2>Results</h2>
-  <p class="setup"><b>Setup.</b> Every model in this study is trained from the same matched recipe, a deliberately small one: about 1.7M OpenVid and Moments-in-Time v2 clips, 8 epochs (about 13.6M samples seen), and encoders of roughly 170M&ndash;190M parameters. This budget matches DisMo's published setting. It is far below the native recipes of VideoMAE or V-JEPA 2, so absolute numbers are lower than their reported ones, but every difference below comes from the architecture and objective rather than from data or compute. We evaluate frozen features with an attentive probe unless a table says finetuning.</p>
+  <p class="setup"><b>Setup.</b> Every model in this study is trained from the same matched recipe, a deliberately small one: about 1.7M OpenVid and Moments-in-Time v2 clips, 8 epochs (about 13.6M samples seen), and encoders of roughly 170M&sim;190M parameters. This budget matches DisMo's published setting. It is far below the native recipes of VideoMAE or V-JEPA 2, so absolute numbers are lower than their reported ones, but every difference below comes from the architecture and objective rather than from data or compute. We evaluate frozen features with an attentive probe unless a table says finetuning.</p>
   <div class="stats">
     <div class="stat"><b>73.25</b><span>Jester, frozen attentive probe (strongest baseline 46.95)</span></div>
     <div class="stat"><b>25.92</b><span>Something-Something V2, frozen (strongest baseline 14.95)</span></div>
-    <div class="stat"><b>&le;1%</b><span>of clips keep their old label when the motion is inverted (baselines 9&ndash;43%)</span></div>
+    <div class="stat"><b>&le;1%</b><span>of clips keep their old label when the motion is inverted (baselines 9&sim;43%)</span></div>
     <div class="stat"><b>456 GF</b><span>encoder FLOPs, about half of VideoMAE, V-JEPA 2 and DisMo</span></div>
   </div>
 
