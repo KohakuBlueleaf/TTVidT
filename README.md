@@ -2,6 +2,8 @@
 
 **Decoupling the Temporal Axis for Efficient Motion-Centric Video Pretraining**
 
+https://arxiv.org/abs/2609.33419
+
 > Accepted at **NeurIPS 2026** (main track).
 
 TT-VidT is a self-supervised video encoder built for *motion*. A DINOv3 ViT-B/16
