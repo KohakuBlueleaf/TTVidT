@@ -1,7 +1,6 @@
 """Analytical parameter counts and forward FLOPs for the encoders and decoders.
 
-    python scripts/analysis/params_flops.py                     # TT3D with depth-separable resample
-    python scripts/analysis/params_flops.py --tt3d-full-linear   # TT3D with full Linear resample
+    python scripts/analysis/params_flops.py
 
 Conventions:
   - Linear(in -> out) on ``seq`` tokens = 2 * seq * in * out FLOPs.
@@ -49,7 +48,6 @@ LATENT_DIM   = 32                # f8 frame VAE: 256 px / 8 = 32 latent per side
 DEC_H = DEC_W = LATENT_DIM // DEC_PATCH    # 32 / 2 = 16
 DEC_LAT_C    = 4                 # latent channels
 DEC_N        = DEC_H * DEC_W     # 16*16 = 256 latent tokens / frame
-TT3D_DEPTHWISE = True            # False with --tt3d-full-linear
 
 TT_F       = 4                   # tt_downsample
 TT_S_DOWN  = (H_p // TT_F) * (W_p // TT_F)   # 4*4 = 16
@@ -85,43 +83,18 @@ def tt1d_layer_flops(D, I, T_, M_):
 
 
 # ---- TT-3D layer -----------------------------------------------------------
-# Full-linear resample (tt_spatial_depthwise=False): pixel-unshuffle f x f patches
-# then Linear(D*f^2 -> D); up: Linear(D -> D*f^2) then pixel-shuffle.
-def tt3d_layer_params_plain(D, I, f):
-    return 2 * D * f * f * D + D * D + 4 * D * D + 2 * D * I   # down + up + out_proj + attn + mlp
+# Structured resample: pixel-unshuffle f x f patches, a fixed (parameter-free)
+# Linear(D*f^2 -> D), D x D channel mix; up: channel mix, fixed Linear(D -> D*f^2),
+# pixel-shuffle.
+def tt3d_layer_params(D, I, f):
+    return 2 * D * D + D * D + 4 * D * D + 2 * D * I   # mix down + up + out_proj + attn + mlp
 
-def tt3d_layer_flops_plain(D, I, f, T_, M_, N_sp_full, N_sp_down):
-    down = f_linear(T_ * N_sp_down, D * f * f, D)
-    up = f_linear(T_ * N_sp_down, D, D * f * f)
+def tt3d_layer_flops(D, I, f, T_, M_, N_sp_full, N_sp_down):
+    down = f_linear(T_ * N_sp_down, D * f * f, D) + f_linear(T_ * N_sp_down, D, D)
+    up = f_linear(T_ * N_sp_down, D, D) + f_linear(T_ * N_sp_down, D, D * f * f)
     out_proj = f_linear(T_ * N_sp_full, D, D)
     seq = T_ * (M_ + N_sp_down)
     return down + up + out_proj + f_attn(seq, D) + f_gelu(seq, D, I)
-
-
-# Depth-separable resample (optional, tt_spatial_depthwise=True).
-# Per-layer, per-frame: spatial_down acts on N_SP positions, spatial_up acts
-# on TT_S_DOWN positions, spatial_out_proj acts on N_SP positions.
-def tt3d_layer_params(D, I, f):
-    sp_mix     = f * f                # spatial f²→1 weights
-    sp_proj    = D * D                # depth-separable channel mix (down)
-    up_mix     = f * f                # spatial 1→f² weights
-    up_proj    = D * D                # depth-separable channel mix (up)
-    out_proj   = D * D                # spatial_out_proj
-    attn       = 4 * D * D
-    mlp        = 2 * D * I            # GELU MLP per current configs
-    return sp_mix + sp_proj + up_mix + up_proj + out_proj + attn + mlp
-
-def tt3d_layer_flops(D, I, f, T_, M_, N_sp_full, N_sp_down):
-    # spatial_down: per-frame mix over N_sp_down (post-unshuffle), channel-mix Linear D→D over N_sp_down
-    spatial_pool_down = T_ * N_sp_down * D * (f * f)        # 1 mul per (channel, position, f²) ≈ 2·N_sp_down·D·f²
-    proj_down         = f_linear(T_ * N_sp_down, D, D)
-    spatial_pool_up   = T_ * N_sp_down * D * (f * f)        # broadcast 1→f²
-    proj_up           = f_linear(T_ * N_sp_down, D, D)
-    out_proj          = f_linear(T_ * N_sp_full, D, D)
-    seq = T_ * (M_ + N_sp_down)
-    attn = f_attn(seq, D)
-    mlp  = f_gelu(seq, D, I)
-    return spatial_pool_down + proj_down + spatial_pool_up + proj_up + out_proj + attn + mlp
 
 
 # ---- TT-VidT TT-1D / TT-3D total -------------------------------------------
@@ -152,8 +125,7 @@ def ttvidt_tt1d():
 
 def ttvidt_tt3d():
     backbone_p = DINO_L * dinov3_block_params(DINO_D, DINO_I)
-    layer_p, layer_f = ((tt3d_layer_params, tt3d_layer_flops) if TT3D_DEPTHWISE
-                        else (tt3d_layer_params_plain, tt3d_layer_flops_plain))
+    layer_p, layer_f = tt3d_layer_params, tt3d_layer_flops
     tt_p       = DINO_L * layer_p(DINO_D, DINO_I, TT_F)
     pool_p     = 2 * attentive_pool_params(DINO_D)
     patch_emb  = 3 * PATCH * PATCH * DINO_D
@@ -285,10 +257,8 @@ def render_md_decoders(DECODER_ROWS):
 
 
 def main():
-    global TT3D_DEPTHWISE
     ap = argparse.ArgumentParser(description="Analytical params / FLOPs (see module docstring).")
-    ap.add_argument("--tt3d-full-linear", action="store_true", help="count the full Linear(D*f^2, D) TT3D resample")
-    TT3D_DEPTHWISE = not ap.parse_args().tt3d_full_linear
+    ap.parse_args()
     ENCODER_ROWS = []
     def add(name, p, fl, scope=None):
         ENCODER_ROWS.append({"name": name, "params": p, "flops": fl,
@@ -304,7 +274,7 @@ def main():
     p, fl = ttvidt_tt1d()
     add("TT-VidT TT-1D (ours)", p, fl)
     p, fl = ttvidt_tt3d()
-    add("TT-VidT TT-3D (ours)" + (" [full-linear resample]" if not TT3D_DEPTHWISE else ""), p, fl)
+    add("TT-VidT TT-3D (ours)", p, fl)
     p, fl = vjepa2_ours()
     add("V-JEPA2 (ours impl., 24L x 768d, tube=2)", p, fl, scope=f"T={VJEPA_T_in} (8 latent), {RES}^2")
 

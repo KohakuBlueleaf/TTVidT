@@ -28,12 +28,10 @@ network is trained jointly.
   and one block-causal attention runs over the T·(K+16) = 192 tokens. The result
   is upsampled back and added to the spatial stream.
 
-The spatial down/up-sampling in TT3D is a patchify-style depth-separable resample:
-a learned f x f spatial mix per 4x4 patch plus a D x D channel projection
-(`tt_spatial_depthwise=True`, the default and the paper configuration). A full
-`Linear(D·16, D)` resample is available with `tt_spatial_depthwise=False`; it
-performs about the same and adds ~212M parameters. The two variants are not
-weight-compatible; the variant is stored in each checkpoint's config.
+The spatial down-sampling in TT3D pixel-unshuffles each 4x4 patch and applies a
+fixed, parameter-free `D x D·16` weight computed from D and f, followed by a
+trainable D x D channel mix; the up-sampling applies the channel mix and the
+transpose of the fixed weight.
 
 ## Decoder and objectives
 
@@ -77,8 +75,7 @@ Analytical encoder cost at T=8, 256x256 (`python scripts/analysis/params_flops.p
 
 | Encoder | Params | Forward GFLOPs |
 |---|---:|---:|
-| TT3D | 196.4M | 456.1 |
-| TT3D, full-linear resample (`tt_spatial_depthwise=False`) | 408.8M | 510.5 |
+| TT3D | 196.4M | 514.1 |
 | TT1D | 175.2M | 400.5 |
 | ViT3D | 170.5M | 1012.6 |
 | DisMo-2D3D | 170.5M | 874.7 |

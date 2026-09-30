@@ -43,18 +43,6 @@ def _init_kwargs(hp: dict) -> dict:
     return kw
 
 
-def _infer_tt3d_variant(hp: dict, state_dict: dict) -> dict:
-    """Checkpoints trained before ``tt_spatial_depthwise`` existed do not record it;
-    read the variant off the weights (the depth-separable resample has a
-    ``spatial_mix`` parameter, the full-linear one does not)."""
-    me = dict(hp.get("motion_encoder_config") or {})
-    if (hp.get("backbone_arch", "ttvidt") == "ttvidt" and me.get("tt_mode") == "3d"
-            and "tt_spatial_depthwise" not in me):
-        me["tt_spatial_depthwise"] = any(k.endswith("spatial_down.spatial_mix") for k in state_dict)
-        hp = {**hp, "motion_encoder_config": me}
-    return hp
-
-
 def _load_weights(model: TTVidTrainer, state_dict: dict, with_decoder: bool) -> None:
     state_dict = {k: v for k, v in state_dict.items() if not k.startswith(_SKIP_PREFIXES)}
     if not with_decoder:
@@ -90,8 +78,7 @@ def load_model(path: str | Path, device: str | torch.device = "cpu",
     p = _resolve(path)
     if p.suffix == ".ckpt":
         ck = torch.load(p, map_location="cpu", weights_only=False, mmap=True)
-        hp = _infer_tt3d_variant(ck["hyper_parameters"], ck["state_dict"])
-        model = TTVidTrainer(**_init_kwargs(hp))
+        model = TTVidTrainer(**_init_kwargs(ck["hyper_parameters"]))
         _load_weights(model, ck["state_dict"], with_decoder)
         if use_ema:
             if "ema_state" not in ck:

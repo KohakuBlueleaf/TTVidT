@@ -35,7 +35,6 @@ TT3D_ENCODER = {
     "motion_ffn_type": "gelu",
     "tt_mode": "3d",
     "tt_downsample": 4,
-    "tt_spatial_depthwise": True,   # depth-separable spatial resample
 }
 TT1D_ENCODER = {
     "temporal_patch_size": 1,

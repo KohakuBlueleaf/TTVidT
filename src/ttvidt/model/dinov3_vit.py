@@ -59,7 +59,6 @@ class DINOv3VidTConfig(DINOv3ViTConfig):
         motion_ffn_type: str = "swiglu",  # "swiglu" or "gelu" for TemporalTransfer
         tt_mode: str = "1d",  # "1d" (motion-only) or "3d" (motion + downsampled spatial)
         tt_downsample: int = 4,  # spatial downsample factor for tt_mode="3d"
-        tt_spatial_depthwise: bool = True,  # True: depth-separable spatial resample (default); False: full Linear(D*f^2, D) resample
         # train augs
         pos_embed_shift: Optional[float] = None,
         pos_embed_jitter: Optional[float] = None,
@@ -96,7 +95,6 @@ class DINOv3VidTConfig(DINOv3ViTConfig):
         self.motion_ffn_type = motion_ffn_type
         self.tt_mode = tt_mode
         self.tt_downsample = tt_downsample
-        self.tt_spatial_depthwise = tt_spatial_depthwise
 
         # train augs
         self.pos_embed_shift = pos_embed_shift
@@ -161,7 +159,6 @@ class DINOv3VidTModel(DINOv3ViTModel):
                             config.num_attention_heads,
                             downsample_factor=config.tt_downsample,
                             ffn_type=config.motion_ffn_type,
-                            depthwise=config.tt_spatial_depthwise,
                         )
                     )
                 else:
@@ -190,9 +187,11 @@ class DINOv3VidTModel(DINOv3ViTModel):
                 mup_init_output(layer.mlp.fc2.weight)
             elif hasattr(layer.mlp, 'down'):
                 mup_init_output(layer.mlp.down.weight)
-            # TT3D-specific: zero-init spatial_out_proj and qk_scale
+            # TT3D-specific: zero-init spatial_out_proj, identity resample channel mix, qk_scale
             if hasattr(layer, 'spatial_out_proj'):
                 nn.init.zeros_(layer.spatial_out_proj.weight)
+                layer.spatial_down.reset_parameters()
+                layer.spatial_up.reset_parameters()
             for module in layer.modules():
                 if hasattr(module, 'qk_scale'):
                     module.qk_scale.data.fill_(10.0)
@@ -227,7 +226,6 @@ class DINOv3VidTModel(DINOv3ViTModel):
         motion_ffn_type: str = "swiglu",
         tt_mode: str = "1d",
         tt_downsample: int = 4,
-        tt_spatial_depthwise: bool = True,
     ):
         dino_v3_config = dino_v3.config
         ttvidt_config = DINOv3VidTConfig(
@@ -239,7 +237,6 @@ class DINOv3VidTModel(DINOv3ViTModel):
             motion_ffn_type=motion_ffn_type,
             tt_mode=tt_mode,
             tt_downsample=tt_downsample,
-            tt_spatial_depthwise=tt_spatial_depthwise,
         )
         new_model = cls(ttvidt_config)
         new_model.load_state_dict(dino_v3.state_dict(), strict=False)

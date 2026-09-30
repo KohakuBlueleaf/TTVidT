@@ -4,8 +4,8 @@ TemporalTransfer3D: Temporal attention with downsampled spatial context and 3D R
 Each frame contributes M motion tokens + S downsampled spatial tokens.
 Block-causal attention across time with 3D RoPE (x, y, t).
 Both motion and spatial tokens receive attention residual.
-Spatial tokens are downsampled via pixel unshuffle + linear,
-and upsampled back via linear + pixel shuffle for residual add-back.
+Spatial tokens are downsampled via pixel unshuffle + a linear map,
+and upsampled back via a linear map + pixel shuffle for residual add-back.
 
 3D RoPE head_dim split: [x, y, t, unused] with 1/4 each.
 Motion tokens use position (0, 0, t) — no spatial, only temporal.
@@ -125,30 +125,86 @@ class RoPE3D(nn.Module):
 # Pixel unshuffle/shuffle spatial resampling
 # =============================================================================
 
+def _hadamard(n: int) -> torch.Tensor:
+    h = torch.ones(1, 1, dtype=torch.float64)
+    while h.shape[0] < n:
+        h = torch.cat([torch.cat([h, h], 1), torch.cat([h, -h], 1)], 0)
+    if h.shape[0] != n:
+        raise ValueError(f"Walsh-Hadamard needs a power-of-two size, got {n}")
+    return h
+
+
+def _dct(n: int) -> torch.Tensor:
+    """Orthonormal DCT-II ``[frequency, index]``."""
+    k = torch.arange(n, dtype=torch.float64)[:, None]
+    c = torch.arange(n, dtype=torch.float64)[None]
+    m = torch.cos(math.pi * (c + 0.5) * k / n) * math.sqrt(2 / n)
+    m[0] /= math.sqrt(2)
+    return m
+
+
+def _chirp_signs(n: int, i: int) -> torch.Tensor:
+    """A deterministic +-1 pattern per frequency ``i`` (quadratic chirp, never 0)."""
+    c = torch.arange(n, dtype=torch.float64)
+    s = torch.sign(torch.cos(math.pi * (c * c * (2 * i + 1) + 3 * i * c) / n + 0.25 * i))
+    s[s == 0] = 1.0
+    return s
+
+
+def structured_weight(dim: int, factor: int) -> torch.Tensor:
+    """The fixed structured down weight ``[D, D*f^2]`` (column index ``c*f^2 + p``,
+    the pixel-unshuffle channel order).
+
+    Over the f^2 positions of a patch, take orthonormal Walsh-Hadamard frequencies
+    ``z_i = sum_p h_i[p] x[:, p]``; then ``y = (1/f) sum_i Q_i z_i`` with
+    ``Q_i = C^T diag(chi_i) C`` (C the orthonormal DCT-II over channels, chi_i
+    deterministic chirp signs): one orthogonal D x D map per position frequency.
+    Depends only on ``D`` and ``f``: nothing is stored.
+    """
+    f2 = factor * factor
+    h = _hadamard(f2) / factor                                   # [i, p], orthonormal rows
+    c = _dct(dim)
+    q = torch.stack([c.T @ (_chirp_signs(dim, i)[:, None] * c) for i in range(f2)])
+    w = torch.einsum("ioc,ip->ocp", q, h) / factor               # [o, c, p]
+    return w.reshape(dim, dim * f2).float()
+
+
+def _to_unshuffled(x: torch.Tensor, h: int, w: int, f: int) -> torch.Tensor:
+    """[B, T, H*W, D] -> [B, T, H'W', D*f*f] (index c*f*f + p)."""
+    B, T = x.shape[:2]
+    x = x.unflatten(2, (h, w)).permute(0, 1, 4, 2, 3).flatten(0, 1)  # [BT, D, H, W]
+    x = F.pixel_unshuffle(x, f)                                      # [BT, D*f*f, H', W']
+    return x.flatten(2).transpose(1, 2).unflatten(0, (B, T))         # [B, T, H'W', D*f*f]
+
+
+def _from_unshuffled(x: torch.Tensor, h: int, w: int, f: int) -> torch.Tensor:
+    """[B, T, H'W', D*f*f] -> [B, T, H*W, D] (inverse of ``_to_unshuffled``)."""
+    B, T = x.shape[:2]
+    x = x.transpose(-1, -2).unflatten(-1, (h // f, w // f)).flatten(0, 1)  # [BT, D*f*f, H', W']
+    x = F.pixel_shuffle(x, f)                                              # [BT, D, H, W]
+    return x.unflatten(0, (B, T)).flatten(3, 4).transpose(-1, -2)          # [B, T, H*W, D]
+
+
 class SpatialDownsample(nn.Module):
     """
-    Depth-separable downsample: spatial pool (f² → 1, channel-shared) then
-    channel mix (D → D).
-
-    Flow: [B, T, L, D] → pixel_unshuffle → [BT, D*f², H', W']
-          → reshape to [BT, H'W', D, f²]
-          → matmul with [f²] spatial-mix weight → [BT, H'W', D]
-          → Linear(D, D) channel mix → [B, T, H'W', D]
-
-    Params: f² (spatial pool) + D² (channel mix), instead of D²·f² for the
-    full Linear(D·f² → D).
+    [B, T, H*W, D] -> [B, T, (H/f)*(W/f), D]: pixel unshuffle, the fixed dense
+    ``structured_weight`` (no parameters, rebuilt from D and f, not saved), then a
+    trainable D x D channel mix ``I + mix`` (``mix`` zero at init). Params: D².
     """
 
-    def __init__(self, hidden_size: int, factor: int, depthwise: bool = True):
+    def __init__(self, hidden_size: int, factor: int):
         super().__init__()
+        self.hidden_size = hidden_size
         self.factor = factor
-        self.depthwise = depthwise
-        f2 = factor * factor
-        if depthwise:
-            self.spatial_mix = nn.Parameter(torch.full((f2,), 1.0 / f2))  # [f²]
-            self.proj = nn.Linear(hidden_size, hidden_size, bias=False)
-        else:  # full resample: pixel-unshuffle -> Linear(D*f^2 -> D)
-            self.proj = nn.Linear(hidden_size * f2, hidden_size, bias=False)
+        self.register_buffer("fixed", self._fixed(), persistent=False)
+        self.mix = nn.Parameter(torch.zeros(hidden_size, hidden_size))
+
+    def _fixed(self) -> torch.Tensor:
+        return structured_weight(self.hidden_size, self.factor)
+
+    def reset_parameters(self) -> None:
+        """Channel mix back to the identity (after a generic init such as mup_init)."""
+        nn.init.zeros_(self.mix)
 
     def forward(self, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
         """
@@ -158,55 +214,30 @@ class SpatialDownsample(nn.Module):
         Returns:
             [B, T, (H//f)*(W//f), D]
         """
-        B, T, _, D = x.shape
-        f = self.factor
-        if not self.depthwise:  # full Linear(D*f^2, D) resample
-            x = x.unflatten(2, (h, w))                     # [B, T, H, W, D]
-            x = x.transpose(-1, -2).transpose(-2, -3)      # [B, T, D, H, W]
-            x = x.flatten(0, 1)                            # [BT, D, H, W]
-            x = F.pixel_unshuffle(x, f)                    # [BT, D*f*f, H', W']
-            x = x.unflatten(0, (B, T))                     # [B, T, D*f*f, H', W']
-            x = x.flatten(3, 4).transpose(-1, -2)          # [B, T, H'W', D*f*f]
-            return self.proj(x)                            # [B, T, H'W', D]
-        H_p, W_p = h // f, w // f
-        x = x.unflatten(2, (h, w))                    # [B, T, H, W, D]
-        x = x.permute(0, 1, 4, 2, 3)                  # [B, T, D, H, W]
-        x = x.flatten(0, 1)                           # [BT, D, H, W]
-        x = F.pixel_unshuffle(x, f)                   # [BT, D*f², H', W']
-        x = x.reshape(B * T, D, f * f, H_p, W_p)      # [BT, D, f², H', W']
-        x = x.permute(0, 3, 4, 1, 2)                  # [BT, H', W', D, f²]
-        x = (x * self.spatial_mix).sum(dim=-1)        # [BT, H', W', D]
-        x = x.flatten(1, 2)                           # [BT, H'·W', D]
-        x = self.proj(x)                              # [BT, H'·W', D]
-        return x.unflatten(0, (B, T))                 # [B, T, H'·W', D]
+        y = F.linear(_to_unshuffled(x, h, w, self.factor), self.fixed)  # [B, T, H'W', D]
+        return y + F.linear(y, self.mix)
 
 
 class SpatialUpsample(nn.Module):
     """
-    Depth-separable upsample: channel mix (D → D) then spatial broadcast
-    (1 → f²).
-
-    Flow: [B, T, H'W', D] → Linear(D, D) channel mix
-          → reshape to [BT, H', W', D, 1] · [f²] → [BT, H', W', D, f²]
-          → reshape and pixel_shuffle → [BT, D, H, W]
-          → [B, T, H*W, D]
-
-    Params: D² (channel mix) + f² (spatial broadcast).
+    [B, T, (H/f)*(W/f), D] -> [B, T, H*W, D], the counterpart of SpatialDownsample:
+    channel mix ``I + mix``, then ``f`` times the transpose of the fixed down weight
+    (writes go back in the basis that was read), pixel shuffle. Params: D².
     """
 
-    def __init__(self, hidden_size: int, factor: int, depthwise: bool = True):
+    def __init__(self, hidden_size: int, factor: int):
         super().__init__()
+        self.hidden_size = hidden_size
         self.factor = factor
-        self.depthwise = depthwise
-        f2 = factor * factor
-        if depthwise:
-            # zero-init so residual add-back starts as identity
-            self.proj = nn.Linear(hidden_size, hidden_size, bias=False)
-            nn.init.zeros_(self.proj.weight)
-            self.spatial_broadcast = nn.Parameter(torch.full((f2,), 1.0 / f2))  # [f²]
-        else:  # plain: Linear(D -> D*f²) -> pixel-shuffle
-            self.proj = nn.Linear(hidden_size, hidden_size * f2, bias=False)
-            nn.init.zeros_(self.proj.weight)
+        self.register_buffer("fixed", self._fixed(), persistent=False)
+        self.mix = nn.Parameter(torch.zeros(hidden_size, hidden_size))
+
+    def _fixed(self) -> torch.Tensor:
+        return self.factor * structured_weight(self.hidden_size, self.factor).T.contiguous()
+
+    def reset_parameters(self) -> None:
+        """Channel mix back to the identity (after a generic init such as mup_init)."""
+        nn.init.zeros_(self.mix)
 
     def forward(self, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
         """
@@ -216,27 +247,8 @@ class SpatialUpsample(nn.Module):
         Returns:
             [B, T, H*W, D]
         """
-        B, T, _, D = x.shape
-        f = self.factor
-        H_p, W_p = h // f, w // f
-        if not self.depthwise:  # full Linear(D*f^2, D) resample
-            x = self.proj(x)                                    # [B, T, H'W', D*f*f]
-            x = x.transpose(-1, -2).unflatten(-1, (H_p, W_p))   # [B, T, D*f*f, H', W']
-            x = x.flatten(0, 1)                                 # [BT, D*f*f, H', W']
-            x = F.pixel_shuffle(x, f)                           # [BT, D, H, W]
-            x = x.unflatten(0, (B, T))                          # [B, T, D, H, W]
-            x = x.flatten(3, 4).transpose(-1, -2)               # [B, T, H*W, D]
-            return x
-        x = self.proj(x)                                              # [B, T, H'W', D]
-        x = x.unflatten(2, (H_p, W_p))                                # [B, T, H', W', D]
-        x = x.unsqueeze(-1) * self.spatial_broadcast                  # [B, T, H', W', D, f²]
-        x = x.flatten(0, 1)                                           # [BT, H', W', D, f²]
-        x = x.permute(0, 3, 4, 1, 2)                                  # [BT, D, f², H', W']
-        x = x.reshape(B * T, D * f * f, H_p, W_p)                     # [BT, D*f², H', W']
-        x = F.pixel_shuffle(x, f)                                     # [BT, D, H, W]
-        x = x.unflatten(0, (B, T))                                    # [B, T, D, H, W]
-        x = x.flatten(3, 4).transpose(-1, -2)                         # [B, T, H*W, D]
-        return x
+        x = x + F.linear(x, self.mix)
+        return _from_unshuffled(F.linear(x, self.fixed), h, w, self.factor)
 
 
 # =============================================================================
@@ -268,7 +280,6 @@ class TemporalTransfer3D(nn.Module):
         downsample_factor: int = 4,
         ffn_type: str = "swiglu",
         qk_norm: bool = False,
-        depthwise: bool = True,
     ):
         super().__init__()
         self.hidden_size = hidden_size
@@ -277,10 +288,9 @@ class TemporalTransfer3D(nn.Module):
         self.downsample_factor = downsample_factor
         self.qk_norm = qk_norm
 
-        # Spatial resampling: depthwise=True (default) is a patchify-style depth-separable
-        # resample; depthwise=False uses a full Linear(D*f^2, D) instead
-        self.spatial_down = SpatialDownsample(hidden_size, downsample_factor, depthwise=depthwise)
-        self.spatial_up = SpatialUpsample(hidden_size, downsample_factor, depthwise=depthwise)
+        # Spatial resampling: fixed structured weight + D x D channel mix
+        self.spatial_down = SpatialDownsample(hidden_size, downsample_factor)
+        self.spatial_up = SpatialUpsample(hidden_size, downsample_factor)
         # Zero-init output projection for spatial add-back (identity at init)
         self.spatial_out_proj = nn.Linear(hidden_size, hidden_size, bias=False)
         nn.init.zeros_(self.spatial_out_proj.weight)
