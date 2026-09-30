@@ -49,15 +49,17 @@ before training. Loading a trained checkpoint does not need them.
 import torch
 from ttvidt.hub import load_model
 
-model = load_model("ttvidt/<run_id>/checkpoints/epoch=7.ckpt", device="cuda", with_decoder=False)
+model = load_model("KBlueLeaf/TTVidT", device="cuda")   # pretrained encoder; or a .ckpt / exported dir
 video = torch.rand(1, 8, 3, 256, 256, device="cuda") * 2 - 1     # [B, T, C, H, W] in [-1, 1]
 with torch.no_grad(), torch.autocast("cuda", dtype=torch.float16):
     out = model.encoder(video)
 motion = out.motion_output    # [B, T, 1, 768]  pooled motion embedding per frame
 ```
 
-Frames should be resized to 256x256 and normalised with mean = std = 0.5. See
-[docs/model.md](docs/model.md) for the architecture and parameter counts.
+Frames should be resized to 256x256 and normalised with mean = std = 0.5. The
+pretrained encoder [`KBlueLeaf/TTVidT`](https://huggingface.co/KBlueLeaf/TTVidT) also
+loads with `transformers` alone (`AutoModel.from_pretrained(..., trust_remote_code=True)`). See
+[docs/model.md](docs/model.md) for the architecture, parameter counts and loading.
 
 ## Reproducing the paper
 

@@ -3,6 +3,7 @@
 Exported models (``export_release``) are a directory (local, or a Hugging Face repo) with
 
     config.json         architecture + the keyword arguments of TTVidTrainer
+                        (``"encoder_only": true`` when no decoder weights are shipped)
     model.safetensors   encoder (+ decoder) weights
 
 and load without network access to the DINOv3 base model: the architecture is
@@ -98,6 +99,8 @@ def load_model(path: str | Path, device: str | torch.device = "cpu",
         if use_ema:
             raise ValueError("exported models have no separate EMA copy")
         model = TTVidTrainer(**_init_kwargs(cfg["model"]))
+        # encoder-only releases ship no decoder weights
+        with_decoder = with_decoder and not cfg.get("encoder_only", False)
         _load_weights(model, load_file(str(d / WEIGHTS_NAME)), with_decoder)
     return model.to(device).eval().requires_grad_(False)
 

@@ -197,6 +197,14 @@ class DINOv3VidTModel(DINOv3ViTModel):
                     module.qk_scale.data.fill_(10.0)
         print(f"Motion layers added: {layer_added} / {config.num_hidden_layers} (mode={config.tt_mode})")
 
+    @torch.no_grad()
+    def _init_weights(self, module) -> None:
+        super()._init_weights(module)
+        # transformers' from_pretrained builds on the meta device and leaves
+        # non-persistent buffers empty: recompute those of the TT modules
+        if hasattr(module, "reset_buffers"):
+            module.reset_buffers()
+
     def freeze_pretrained(self, requires_grad: bool = False):
         """Freeze or unfreeze the pretrained backbone components.
 

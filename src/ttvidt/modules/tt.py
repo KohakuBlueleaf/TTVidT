@@ -48,12 +48,18 @@ class TemporalRoPE1D(nn.Module):
         # Use half for temporal RoPE, half unchanged
         self.rope_dim = head_dim // 2
         self.unused_dim = head_dim - self.rope_dim
+        self.max_period = max_period
+        self.register_buffer("freqs", self._freqs(), persistent=False)
 
+    def _freqs(self) -> torch.Tensor:
         half = self.rope_dim // 2
-        freqs = torch.exp(
-            -math.log(max_period) * torch.arange(half, dtype=torch.float32) / half
+        return torch.exp(
+            -math.log(self.max_period) * torch.arange(half, dtype=torch.float32) / half
         )
-        self.register_buffer("freqs", freqs, persistent=False)
+
+    def reset_buffers(self) -> None:
+        """Recompute the non-persistent buffers (e.g. after transformers' meta-device loading)."""
+        self.freqs.copy_(self._freqs())
 
     def forward(self, q: torch.Tensor, k: torch.Tensor, t: int, m: int):
         """

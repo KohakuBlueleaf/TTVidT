@@ -89,10 +89,17 @@ class RoPE3D(nn.Module):
         self.dim_y = head_dim // 4
         self.dim_t = head_dim // 4
         self.dim_unused = head_dim - self.dim_x - self.dim_y - self.dim_t
+        self.max_period = max_period
 
         self.register_buffer("freqs_x", _compute_freqs(self.dim_x, max_period), persistent=False)
         self.register_buffer("freqs_y", _compute_freqs(self.dim_y, max_period), persistent=False)
         self.register_buffer("freqs_t", _compute_freqs(self.dim_t, max_period), persistent=False)
+
+    def reset_buffers(self) -> None:
+        """Recompute the non-persistent buffers (e.g. after transformers' meta-device loading)."""
+        self.freqs_x.copy_(_compute_freqs(self.dim_x, self.max_period))
+        self.freqs_y.copy_(_compute_freqs(self.dim_y, self.max_period))
+        self.freqs_t.copy_(_compute_freqs(self.dim_t, self.max_period))
 
     def forward(self, q: torch.Tensor, k: torch.Tensor, positions: torch.Tensor):
         """
@@ -206,6 +213,10 @@ class SpatialDownsample(nn.Module):
         """Channel mix back to the identity (after a generic init such as mup_init)."""
         nn.init.zeros_(self.mix)
 
+    def reset_buffers(self) -> None:
+        """Recompute the fixed weight (e.g. after transformers' meta-device loading)."""
+        self.fixed.copy_(self._fixed())
+
     def forward(self, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
         """
         Args:
@@ -238,6 +249,10 @@ class SpatialUpsample(nn.Module):
     def reset_parameters(self) -> None:
         """Channel mix back to the identity (after a generic init such as mup_init)."""
         nn.init.zeros_(self.mix)
+
+    def reset_buffers(self) -> None:
+        """Recompute the fixed weight (e.g. after transformers' meta-device loading)."""
+        self.fixed.copy_(self._fixed())
 
     def forward(self, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
         """

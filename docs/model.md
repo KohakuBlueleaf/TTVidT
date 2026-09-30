@@ -71,6 +71,18 @@ directory (`config.json` with the full architecture and `TTVidTrainer` arguments
 `model.safetensors` with the weights) that `load_model` accepts as a local path or a
 Hugging Face repo id, without downloading the DINOv3 base weights.
 
+`scripts/tools/export_hf.py` makes such a directory loadable with `transformers` as
+well: it adds the `transformers` fields to `config.json` and copies the encoder
+source files next to the weights (they need only `torch` and `transformers`):
+
+```python
+from transformers import AutoModel
+model = AutoModel.from_pretrained("<dir or repo id>", trust_remote_code=True)   # the encoder
+motion = model(video).motion_output
+```
+
+The same directory still loads with `ttvidt.hub.load_model`.
+
 Analytical encoder cost at T=8, 256x256 (`python scripts/analysis/params_flops.py`):
 
 | Encoder | Params | Forward GFLOPs |
